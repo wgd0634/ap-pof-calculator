@@ -25,7 +25,7 @@ st.caption("Persistent organ failure or in-hospital mortality — 4-variable mod
 
 with st.sidebar:
     st.header("Model settings")
-    recal = st.checkbox("Apply intercept recalibration (−0.816) — recommended outside the US",
+    recal = st.checkbox("Apply intercept recalibration (−0.400) — recommended outside the US",
                         value=True)
     use_mpv = st.checkbox("Use MPV-augmented model (requires MPV)", value=False)
     st.markdown("---")
@@ -82,17 +82,18 @@ if st.button("Calculate risk", type="primary"):
 st.markdown("---")
 st.subheader("About the model")
 st.markdown(
-    "- **Outcome:** composite of persistent organ failure (SOFA subscore ≥2 for >48 h) "
-    "or in-hospital death.\n"
-    "- **Equation:** logit(p) = 0.285 + 0.259·z(RDW-CV) + 0.561·z(bilirubin) "
-    "+ 0.313·z(creatinine) + 0.335·z(BUN), z standardized to the MIMIC-IV training set. "
-    "The deployment model in this app was re-estimated on the full MIMIC-IV cohort (n=777) "
+    "- **Outcome:** composite of persistent organ failure (modified Marshall score ≥2 in "
+    "the respiratory, cardiovascular, or renal system for >48 h, per the revised Atlanta "
+    "classification) or in-hospital death.\n"
+    "- **Equation:** logit(p) = −0.245 + 0.280·z(RDW-CV) + 0.171·z(bilirubin) "
+    "+ 0.535·z(creatinine) + 0.234·z(BUN), z standardized to the full MIMIC-IV cohort (n=777). "
+    "The deployment model in this app was re-estimated on the full MIMIC-IV cohort "
     "with identical preprocessing.\n"
-    "- **Performance:** internal validation AUC 0.679 (95% CI 0.612–0.746); "
-    "Chinese external cohort AUC 0.815 (95% CI 0.763–0.864); "
-    "eICU-CRD external validation AUC 0.773 (95% CI 0.730–0.814). "
-    "Intercept recalibration (−0.816) is recommended when transporting the model "
-    "to cohorts with lower baseline risk.\n"
+    "- **Performance:** internal validation AUC 0.719 (95% CI 0.652–0.781); "
+    "Chinese external cohort AUC 0.833 (95% CI 0.782–0.877); "
+    "eICU-CRD external validation AUC 0.774 (95% CI 0.719–0.825). "
+    "Intercept recalibration (−0.400 in the Chinese cohort) is recommended when "
+    "transporting the model to cohorts with lower baseline risk.\n"
     "- **MPV-augmented model** was trained on the Chinese cohort (n=384); "
     "out-of-fold AUC 0.912 vs 0.866 for the base model. The incremental value of MPV "
     "did not replicate in eICU-CRD (ΔAUC +0.011); interpret MPV results with caution.\n"
