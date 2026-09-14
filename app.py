@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+"""Web calculator: persistent organ failure / in-hospital mortality in acute pancreatitis.
+
+Run locally:   streamlit run app.py
+Deploy free:   push this folder to GitHub, then share.streamlit.io -> New app.
+"""
+import pickle
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+st.set_page_config(page_title="AP Prognosis Calculator", page_icon="🩺", layout="centered")
+
+@st.cache_resource
+def load_bundle():
+    with open("model.pkl", "rb") as f:
+        return pickle.load(f)
+
+b = load_bundle()
+
+st.title("Prognosis in Acute Pancreatitis")
+st.caption("Persistent organ failure or in-hospital mortality — 4-variable model "
+           "developed in MIMIC-IV (n=777) and externally validated in a Chinese cohort (n=384)")
+
+with st.sidebar:
+    st.header("Model settings")
+    recal = st.checkbox("Apply intercept recalibration (−0.816) — recommended outside the US",
+                        value=True)
+    use_mpv = st.checkbox("Use MPV-augmented model (requires MPV)", value=False)
+    st.markdown("---")
+    st.markdown("**Risk thresholds**")
+    st.markdown(f"- Base model (Youden): `{b['base']['threshold']:.3f}`")
+    st.markdown(f"- MPV model (Youden): `{b['mpv']['threshold']:.3f}`")
+
+st.subheader("Admission laboratory values (within 24 h of ICU admission)")
+c1, c2 = st.columns(2)
+with c1:
+    rdw = st.number_input("RDW-CV (%)", min_value=8.0, max_value=40.0, value=14.0, step=0.1)
+    bili = st.number_input("Total bilirubin (mg/dL)", min_value=0.1, max_value=40.0, value=1.0, step=0.1)
+with c2:
+    cr = st.number_input("Creatinine (mg/dL)", min_value=0.1, max_value=15.0, value=1.0, step=0.1)
+    bun = st.number_input("BUN (mg/dL)", min_value=1.0, max_value=200.0, value=15.0, step=1.0)
+mpv = None
+if use_mpv:
+    mpv = st.number_input("Mean platelet volume, MPV (fL)", min_value=5.0, max_value=20.0,
+                          value=10.5, step=0.1)
+
+def predict_base(rdw, bili, cr, bun, recalibrate):
+    x = pd.DataFrame([[rdw, bili, cr, bun]], columns=b['features'])
+    z = b['base']['scaler'].transform(x)
+    lp = b['base']['model'].decision_function(z)
+    if recalibrate:
+        lp = lp + b['base']['recal_shift']
+    return 1 / (1 + np.exp(-lp))
+
+if st.button("Calculate risk", type="primary"):
+    p = float(predict_base(rdw, bili, cr, bun, recal))
+    cut = b['base']['threshold']
+    st.subheader("Result — base 4-variable model")
+    st.metric("Predicted risk of POF or in-hospital death", f"{p:.1%}")
+    if p >= cut:
+        st.error(f"High risk (≥ {cut:.1%}). In the external Chinese cohort, the observed "
+                 f"event rate in this group was 44.9% (vs 9.3% below threshold).")
+    else:
+        st.success(f"Low risk (< {cut:.1%}). Observed event rate in this group was 9.3% "
+                   f"in the external cohort.")
+
+    if use_mpv and mpv is not None:
+        x = pd.DataFrame([[rdw, bili, cr, bun, mpv]],
+                         columns=['rdw_cv', 'bilirubin', 'creatinine', 'bun', 'mpv'])
+        z = b['mpv']['scaler'].transform(x)
+        p2 = float(b['mpv']['model'].predict_proba(z)[:, 1])
+        cut2 = b['mpv']['threshold']
+        st.subheader("Result — MPV-augmented model (local cohort)")
+        st.metric("Predicted risk (with MPV)", f"{p2:.1%}")
+        if p2 >= cut2:
+            st.error(f"High risk (≥ {cut2:.1%}).")
+        else:
+            st.success(f"Low risk (< {cut2:.1%}).")
+
+st.markdown("---")
+st.subheader("About the model")
+st.markdown(
+    "- **Outcome:** composite of persistent organ failure (SOFA subscore ≥2 for >48 h) "
+    "or in-hospital death.\n"
+    "- **Equation:** logit(p) = 0.285 + 0.259·z(RDW-CV) + 0.561·z(bilirubin) "
+    "+ 0.313·z(creatinine) + 0.335·z(BUN), z standardized to the MIMIC-IV training set. "
+    "The deployment model in this app was re-estimated on the full MIMIC-IV cohort (n=777) "
+    "with identical preprocessing.\n"
+    "- **Performance:** internal validation AUC 0.679 (95% CI 0.612–0.746); "
+    "external validation AUC 0.815 (95% CI 0.763–0.864). "
+    "Intercept recalibration (−0.816) is recommended when transporting the model "
+    "to cohorts with lower baseline risk.\n"
+    "- **MPV-augmented model** was trained on the Chinese cohort (n=384); "
+    "out-of-fold AUC 0.912 vs 0.866 for the base model.\n"
+    "- **Intended use:** research and risk stratification support only; "
+    "not a substitute for clinical judgment. Verify local calibration before clinical use.")
