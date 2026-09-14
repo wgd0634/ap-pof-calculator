@@ -49,10 +49,10 @@ if use_mpv:
 def predict_base(rdw, bili, cr, bun, recalibrate):
     x = pd.DataFrame([[rdw, bili, cr, bun]], columns=b['features'])
     z = b['base']['scaler'].transform(x)
-    lp = b['base']['model'].decision_function(z)
+    lp = float(np.asarray(b['base']['model'].decision_function(z)).ravel()[0])
     if recalibrate:
-        lp = lp + b['base']['recal_shift']
-    return 1 / (1 + np.exp(-lp))
+        lp = lp + float(b['base']['recal_shift'])
+    return float(1 / (1 + np.exp(-lp)))
 
 if st.button("Calculate risk", type="primary"):
     p = float(predict_base(rdw, bili, cr, bun, recal))
@@ -70,7 +70,7 @@ if st.button("Calculate risk", type="primary"):
         x = pd.DataFrame([[rdw, bili, cr, bun, mpv]],
                          columns=['rdw_cv', 'bilirubin', 'creatinine', 'bun', 'mpv'])
         z = b['mpv']['scaler'].transform(x)
-        p2 = float(b['mpv']['model'].predict_proba(z)[:, 1])
+        p2 = float(b['mpv']['model'].predict_proba(z)[0, 1])
         cut2 = b['mpv']['threshold']
         st.subheader("Result — MPV-augmented model (local cohort)")
         st.metric("Predicted risk (with MPV)", f"{p2:.1%}")
