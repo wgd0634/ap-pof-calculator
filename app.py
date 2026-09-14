@@ -20,7 +20,8 @@ b = load_bundle()
 
 st.title("Prognosis in Acute Pancreatitis")
 st.caption("Persistent organ failure or in-hospital mortality — 4-variable model "
-           "developed in MIMIC-IV (n=777) and externally validated in a Chinese cohort (n=384)")
+           "developed in MIMIC-IV (n=777) and externally validated in a Chinese cohort (n=384) "
+           "and the US multi-center eICU-CRD (n=575)")
 
 with st.sidebar:
     st.header("Model settings")
@@ -88,10 +89,12 @@ st.markdown(
     "The deployment model in this app was re-estimated on the full MIMIC-IV cohort (n=777) "
     "with identical preprocessing.\n"
     "- **Performance:** internal validation AUC 0.679 (95% CI 0.612–0.746); "
-    "external validation AUC 0.815 (95% CI 0.763–0.864). "
+    "Chinese external cohort AUC 0.815 (95% CI 0.763–0.864); "
+    "eICU-CRD external validation AUC 0.773 (95% CI 0.730–0.814). "
     "Intercept recalibration (−0.816) is recommended when transporting the model "
     "to cohorts with lower baseline risk.\n"
     "- **MPV-augmented model** was trained on the Chinese cohort (n=384); "
-    "out-of-fold AUC 0.912 vs 0.866 for the base model.\n"
+    "out-of-fold AUC 0.912 vs 0.866 for the base model. The incremental value of MPV "
+    "did not replicate in eICU-CRD (ΔAUC +0.011); interpret MPV results with caution.\n"
     "- **Intended use:** research and risk stratification support only; "
     "not a substitute for clinical judgment. Verify local calibration before clinical use.")
